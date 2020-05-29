@@ -1,0 +1,68 @@
+---
+title: "Mapping the 2019 ATM"
+author: "J. Dayton"
+date: "5/28/2020"
+output: html_document
+always_allow_html: true
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(dplyr)
+library(ggplot2)
+library(ggmap)
+library(kableExtra)
+library(knitr)
+library(lubridate)
+library(trackeR)
+```
+
+### Background
+
+As a continued relationship building event, my wife and I enjoy training for at least one 'official' run every year.  We started with 5k runs and this year we decided to embark on a 10-mile run.  These activities motivate us to perform physical activity ... together.  As part of Coursera's Developing Data Products course, I have decided to plot this years run, the Army Ten-Miler (ATM). (<https://www.armytenmiler.com/>)
+
+### Data
+
+Garmin is one of many fitness trackers on the market.  The data sensor utalized for colletion was a Garmin Forerunner 235 Smartwatch.  The event data from Garmin was download from my personal account through <https://connect.garmin.com>.  The personal activity data is automatically downloaded in 3 formats; .tcx, .gpx, and .kml.  The .tcx data was used for mapping this activity.
+```{r getData}
+##Load the data
+dfRaw <- readTCX("./Garmin_Activity_Data/activity_4153631405.tcx")
+```
+
+#### Data Cleaning
+There are three columns/variables, that do not contain data.  These three columns contained all NA values for the variables of _cadence_cycling_, _power_, and _temperature_.  Additionally, there are 9 data points (rows) that contain NA values for the latitude and longitude.  All NA values were removed for this analysis.
+```{r setDF}
+#Remove columns with NA Values
+df <- dfRaw[, -c(9:11)]
+#There are 9 rows with NA value in Lat and Lon
+df <- df[!is.na(df$latitude), ] #Note:  The NA rows same for both lat and lon
+```
+
+#### Head of (Clean) Data Table
+```{r datTab, warning=FALSE}
+dTable <- kable(head(df), padding = 0, row.names = FALSE) %>%
+   kable_styling(latex_options = c("striped", "scale_down"))
+dTable
+```
+```{r getBaseMap, warning=FALSE, include=FALSE}
+#Find the range of Lat and Lon
+range(df$longitude)
+range(df$latitude)
+
+#Get the base map
+base <- get_map(location = c(-77.085, 38.85, -77.01, 38.91), 
+                maptype = "hybrid") #"hybrid" is likely googlemap
+```
+### Map of 2019 ATM Route
+```{r firstPlot}
+map1 <- ggmap(base) + 
+   geom_point(data = df, aes(x = longitude, y = latitude), shape = 20, 
+              color="red", cex = 0.25) +
+   geom_label(x = df$longitude[1], y = df$latitude[1], position = "nudge", label = "Start/Finish", angle = 45, size = 2.5, color = "darkgreen") +
+   labs(x="Latitude", y="Longitude", title="2019 Army Ten-Miler") + 
+   theme_bw() 
+map1
+```
+
+##### **_FIN_**

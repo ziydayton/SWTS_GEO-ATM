@@ -1,0 +1,90 @@
+---
+title: "GEO_Code - Garmin Example"
+author: "J. Dayton"
+date: "5/13/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(ggplot2)
+library(ggmap)
+library(knitr)
+library(lubridate)
+library(trackeR)
+
+source("custFunc.R")
+```
+
+## Get the Garmin Activity Data
+
+Garmin is one of manu fitness trackers on the market.  The event data from Garmin was download from my personal account.  Source of data <https://connect.garmin.com/modern/activity/4153631405>.
+
+```{r getData}
+##Load the data
+dfRaw <- readTCX("./Garmin_Activity_Data/activity_4153631405.tcx")
+```
+
+## Clean Data
+
+There are columns that do not contain data, all NA values.  Additionally, there are 9 data points (rows) that contain NA values for the latitude and longitude.  The NA values are removed.
+
+```{r setDF}
+#Remove columns with NA Values
+df <- dfRaw[, -c(9:11)]
+#There are 9 rows with NA value in Lat and Lon
+df <- df[!is.na(df$latitude), ] #Note:  The NA rows same for both lat and lon
+kable(head(df), format = "markdown", padding = 0)
+```
+
+## Find the range of Lat and Lon
+
+```{r getBaseMap, echo=TRUE, warning=FALSE, include=FALSE}
+range(df$longitude)
+range(df$latitude)
+
+base <- get_map(location = c(-77.085, 38.85, -77.01, 38.91), 
+                maptype = "hybrid") #"hybrid" is likely googlemap
+```
+
+## Check out the base map
+
+The 
+
+``` {r plotBase}
+map1 <- ggmap(base)
+map1
+```
+
+```{r firstPlot}
+map1 <- ggmap(base) + 
+   geom_point(data = df, aes(x = longitude, y = latitude), shape = 20, 
+              color="red", cex = 0.25) +
+   geom_label(x = df$longitude[1], y = df$latitude[1], position = "nudge", label = "Start/Finish", angle = 45, size = 2.5, color = "darkgreen") +
+   labs(x="Latitude", y="Longitude", title="2020 Army 10 Miler") + 
+   theme_bw() 
+map1
+```
+
+```{r baseMap2, warning=FALSE, include=FALSE}
+base2 <- get_map(location = c(-77.085, 38.85, -77.01, 38.91), 
+                maptype = "satellite")
+```
+
+```{r plotBaseMap2}
+ggmap(base2)
+```
+
+```{r plotAgain}
+map2 <- ggmap(base2) + 
+   geom_point(data = df, aes(x = longitude, y = latitude), shape = 20, 
+              color="red", cex = 0.25) +
+   geom_label(x = df$longitude[1], y = df$latitude[1], position = "nudge", label = "Start/Finish", angle = 45, size = 2.5, color = "darkgreen") +
+   labs(x="Latitude", y="Longitude", title="2020 Army 10 Miler") + 
+   theme_bw() 
+map2
+```
+
+FIN

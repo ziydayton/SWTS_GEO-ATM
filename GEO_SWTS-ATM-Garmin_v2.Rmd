@@ -1,0 +1,110 @@
+---
+title: "Mapping the 2019 Army Ten-Miler"
+author: "J. Dayton"
+date: "5/28/2020"
+output: html_document
+always_allow_html: true
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(dplyr)
+library(kableExtra)
+library(knitr)
+library(leaflet)
+library(lubridate)
+library(trackeR)
+
+source("custFunc.R")
+```
+
+### Background
+
+As a continued relationship building event, my wife and I enjoy training for at least one 'official' run every year.  We started with 5k runs and this year we decided to embark on a 10-mile run.  These activities motivate us to perform physical activity ... together.  As part of Coursera's Developing Data Products course, I have decided to plot this years run, the Army Ten-Miler (ATM). (<https://www.armytenmiler.com/>)
+
+### Data
+
+Garmin is one of many fitness trackers on the market.  The data sensor utalized for colletion was a Garmin Forerunner 235 Smartwatch.  The event data from Garmin was download from my personal account through <https://connect.garmin.com>.  The personal activity data is automatically downloaded in 3 formats; .tcx, .gpx, and .kml.  The .tcx data was used for mapping this activity.
+```{r getData}
+##Load the data
+dfRaw <- readTCX("./Garmin_Activity_Data/activity_4153631405.tcx")
+```
+
+#### Data Cleaning
+There are three columns/variables, that do not contain data.  These three columns contained all NA values for the variables of _cadence_cycling_, _power_, and _temperature_.  Additionally, there are 9 data points (rows) that contain NA values for the latitude and longitude.  All NA values were removed for this analysis.
+```{r setDF}
+#Remove columns with NA Values
+df <- dfRaw[, -c(9:11)]
+rm(dfRaw)
+#There are 9 rows with NA value in Lat and Lon
+df <- df[!is.na(df$latitude), ] #Note:  The NA rows same for both lat and lon
+```
+
+#### Head of (Clean) Data Table
+```{r datTab, warning=FALSE}
+dTable <- kable(head(df), padding = 0, row.names = FALSE) %>%
+   kable_styling(latex_options = c("striped", "scale_down"))
+dTable
+```
+```{r getBaseMap, warning=FALSE, include=FALSE}
+#Find the range of Lat and Lon
+range(df$longitude)
+range(df$latitude)
+```
+### Map of 2019 ATM Route
+```{r firstPlot}
+#Leaflet with Markers
+#Creating Marker Labels
+labs <- lapply(seq(nrow(df)), function(i) {
+   paste0( '<b>TIME: </b>', custTimeDiff(time1 = df$time[1], 
+                                         time2 = df$time[i]), "</br>",
+           '<b>DISTANCE: </b>',round((df[i, "distance"]/1609.34), 1), " mi</br>",
+          '<b>HEART RATE: </b>',df[i, "heart_rate"], " bpm</br>",
+          '<b>SPEED: </b>',round((df[i, "speed"]*2.2369), 2), " mph</br>",
+          '<b>CADENCE: </b>',df[i, "cadence_running"], " bpm</br>",
+          '<b>ALTITUDE: </b>',round(df[i, "altitude"], 2), " m" )
+   
+   
+   } )
+#Create Map
+leafCircleMap <- df %>% 
+   leaflet() %>% 
+   addTiles() %>% 
+   setView(lng = mean(df$longitude, na.rm = TRUE), 
+           lat = mean(df$latitude, na.rm = TRUE),  
+           zoom = 13) %>%
+   addPolylines(lng = ~longitude, lat = ~latitude, color = "darkgreen", 
+                weight = 4, opacity = 1 ) %>%
+   addCircleMarkers(lng = df$longitude[1], lat = df$latitude[1], radius = 0,
+    label = "START", labelOptions = labelOptions(noHide = T, 
+                                                 direction = "left", 
+                                                 offset = c(-4, 0),
+                                                 style = list(
+        "color" = "darkgreen",
+        "font-family" = "arial",
+        "font-style" = "italic",
+        "box-shadow" = "1px 1px rgba(0,0,0,0.25)",
+        "font-size" = "10px",
+        "border-color" = "darkgreen"))) %>%
+   addCircleMarkers(lng = df$longitude[length(df$longitude)], 
+                    lat = df$latitude[length(df$latitude)], radius = 0,
+    label = "FINISH", labelOptions = labelOptions(noHide = T, 
+                                                 direction = "right", 
+                                                 offset = c(4, 0),
+                                                 style = list(
+        "color" = "darkgreen",
+        "font-family" = "arial",
+        "font-style" = "italic",
+        "box-shadow" = "1px 1px rgba(0,0,0,0.25)",
+        "font-size" = "10px",
+        "border-color" = "darkgreen"))) %>%
+   addCircleMarkers(lng = ~longitude, lat = ~latitude,  
+              color = "darkgreen", opacity = 0.9, radius = 0.1,
+              label = lapply(labs, htmltools::HTML) )%>%
+   addControl("<b>2019 ATM (13 October 2019)</b>", 
+             position = "topright")
+leafCircleMap
+```
+
+##### **_FIN_**
